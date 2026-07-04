@@ -1,1 +1,3 @@
-# mindmint-ai
+# MindMint AI
+
+AI Powered Exam Preparation Assistant
