@@ -1,190 +1,239 @@
 const pdfInput = document.getElementById("pdfInput");
-const allButtons = document.querySelectorAll(".buttons button");
+console.log(pdfInput);
 const notes = document.getElementById("notes");
 const output = document.getElementById("output");
-async function askAI(prompt){
-    output.innerHTML=`
-<div class="loader"></div>
-<p style="text-align:center">
-MindMint AI is analyzing your notes...
-</p>
-`;
-allButtons.forEach(btn => btn.disabled = true);
-    try{
-        const response = await fetch("http://localhost:5000/generate",{
-            method:"POST",
-            headers:{
-                "Content-Type":"application/json"
+const allButtons = document.querySelectorAll(".buttons button");
+async function askAI(prompt) {
+    output.innerHTML = `
+        <div class="loader"></div>
+        <p style="text-align:center">
+            MindMint AI is analyzing your notes...
+        </p>
+    `;
+    allButtons.forEach(btn => btn.disabled = true);
+    try {
+        const response = await fetch("http://localhost:5000/generate", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
             },
-            body:JSON.stringify({
-                prompt
+            body: JSON.stringify({
+                prompt: prompt
             })
         });
+        if (!response.ok) {
+            throw new Error("Server Error");
+        }
         const data = await response.json();
-        output.innerHTML=`
-<h2>✨ AI Response</h2>
-<hr><br>
-
-${data.result}`;
-    }
-    catch(error){
-        allButtons.forEach(btn => btn.disabled = false);
-        output.innerHTML=`
-<h2>❌ Error</h2>
-<p>Unable to connect to MindMint AI.</p>
-<p>Please check your internet or backend server.</p>
-`;
+        output.innerHTML = `
+            <h2>✨ AI Response</h2>
+            <hr><br>
+            ${data.result} `;
+        output.scrollIntoView({
+            behavior: "smooth"
+        });
+    } catch (error) {
+        output.innerHTML = `
+            <h2>❌ Error</h2>
+            <p>Unable to connect to MindMint AI.</p>
+            <p>Please make sure your backend server is running.</p>
+        `;
         console.log(error);
+    } finally {
+        allButtons.forEach(btn => btn.disabled = false);
     }
 }
-function getNotes(){
-    if(notes.value.trim()===""){
-        alert("Please paste your notes first.");
+function getNotes() {
+    if (notes.value.trim() === "") {
+        alert("Please upload a PDF or paste your notes.");
         return null;
     }
     return notes.value;
 }
-document.getElementById("summaryBtn").onclick = () => {
+pdfInput.addEventListener("change", async () => {
+    alert("PDF Selected");
 
-    if(notes.value.trim()==""){
-        alert("Upload a PDF first.");
-        return;
+    const file = pdfInput.files[0];
+    console.log(file);
+
+    const formData = new FormData();
+    formData.append("pdf", file);
+
+    try {
+        const response = await fetch("http://localhost:5000/upload/pdf", {
+            method: "POST",
+            body: formData
+        });
+
+        console.log("Status:", response.status);
+
+        const data = await response.json();
+        console.log(data);
+
+        notes.value = data.text;
+        output.innerHTML = "✅ PDF uploaded successfully";
+    } catch (err) {
+        console.error(err);
     }
+});
+document.getElementById("summaryBtn").onclick = () => {
+    const text = getNotes();
+    if (!text) return;
     askAI(`
 You are an expert teacher.
-Answer ONLY from the study material below.
-If something is not present in the notes,
-say "Not available in uploaded PDF."
+Read ONLY the notes below.
+If information is missing, reply:
+"Not available in uploaded PDF."
 Study Material:
-${notes.value}
-Give
-1. Short Summary
-2. Key Points
-3. Important Terms
-4. Revision Notes
+${text}
+Return:
+# Summary
+# Key Points
+# Important Terms
+# Revision Notes
+Use bullet points wherever possible.
 `);
 };
-document.getElementById("simplifyBtn").onclick=()=>{
-    const text=getNotes();
-    if(!text) return;
+document.getElementById("simplifyBtn").onclick = () => {
+    const text = getNotes();
+    if (!text) return;
     askAI(`
-Explain these notes in very simple English.
+Explain ONLY the following study material.
+Study Material:
+${text}
 Include:
-Simple Explanation
-Real Life Example
-Easy Revision Tip
-${text}
+1. Easy Explanation
+2. Real Life Example
+3. Simple Revision Tip
+Do not add anything not present in the notes.
 `);
 };
-document.getElementById("quizBtn").onclick=()=>{
-    const text=getNotes();
-    if(!text) return;
+document.getElementById("quizBtn").onclick = () => {
+    const text = getNotes();
+    if (!text) return;
     askAI(`
-Generate 10 MCQs.
-Each question should have
-A
-B
-C
-D
-Correct Answer
-Explanation
-Notes:
+You are an expert teacher.
+Using ONLY the study material below, generate 10 multiple-choice questions.
+Study Material:
 ${text}
+Format:
+Question 1
+A)
+B)
+C)
+D)
+Correct Answer:
+Explanation:
+Repeat for all 10 questions.
+Do NOT use markdown tables.
 `);
 };
-document.getElementById("flashcardBtn").onclick=()=>{
-    const text=getNotes();
-    if(!text) return;
+document.getElementById("flashcardBtn").onclick = () => {
+    const text = getNotes();
+    if (!text) return;
     askAI(`
-Create 10 flashcards.
-Format
-Question
-Answer
-Notes:
+Create 10 revision flashcards ONLY from these notes.
+Study Material:
 ${text}
+Format:
+Flashcard 1
+Front:
+Back:
+Flashcard 2
+Front:
+Back:
+Continue until Flashcard 10.
 `);
 };
-document.getElementById("examBtn").onclick=()=>{
-    const text=getNotes();
-    if(!text) return;
+document.getElementById("examBtn").onclick = () => {
+    const text = getNotes();
+    if (!text) return;
     askAI(`
-You are an expert exam mentor.
-From these notes generate:
+You are an experienced exam mentor.
+Using ONLY these notes, prepare an Exam Booster.
+Study Material:
+${text}
+Include:
 📄 One Page Revision Sheet
 ⭐ Top 10 Important Points
 🔥 5 Most Expected Exam Questions
 🧠 Memory Tricks
 ⚠ Common Mistakes
 💡 Last Minute Tips
-Notes:
-${text}
+Do not include information outside the uploaded notes.
 `);
 };
-// Copy Button
-document.getElementById("copyBtn").onclick = () => {
-    navigator.clipboard.writeText(output.innerText);
-    alert("Copied!");
-};
-
-// Download Button
-document.getElementById("downloadBtn").onclick = () => {
-    const blob = new Blob([output.innerText], { type: "text/plain" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "MindMintAI_Notes.txt";
-    a.click();
-};
-// Dark Mode
-document.getElementById("themeBtn").onclick = () => {
-    document.body.classList.toggle("dark");
-};
-document.getElementById("plannerBtn").onclick=()=>{
-const text=getNotes();
-if(!text) return;
-askAI(`
-Create a 7-day study plan for
+document.getElementById("plannerBtn").onclick = () => {
+    const text = getNotes();
+    if (!text) return;
+    askAI(`
+Create a detailed 7-day study plan using ONLY these notes.
+Study Material:
 ${text}
-Include
-Daily Goals
+For each day include:
+Morning
+Afternoon
+Evening
 Revision
 Practice Questions
+Expected Study Time
+Keep the schedule realistic for a student preparing for exams.
 `);
 };
-pdfInput.addEventListener("change", async () => {
-
-    const file = pdfInput.files[0];
-
-    if (!file) return;
-
-    const formData = new FormData();
-
-    formData.append("pdf", file);
-
-    output.innerHTML = "📄 Uploading PDF...";
-
+document.getElementById("copyBtn").onclick = async () => {
     try {
-
-        const response = await fetch("http://localhost:5000/upload/pdf", {
-            method: "POST",
-            body: formData
-        });
-        const data = await response.json();
-        notes.value = data.text;
-        console.log("PDF Length:", data.text.length);
-        console.log(data.text.substring(0,500));
-        output.innerHTML ="✅ PDF uploaded successfully.<br>Now choose Summary, Quiz or Simplify.";
-    }
-    catch(err){
+        await navigator.clipboard.writeText(output.innerText);
+        alert("✅ AI response copied successfully!");
+    } catch (err) {
+        alert("❌ Unable to copy.");
         console.log(err);
-        output.innerHTML="❌ PDF Upload Failed.";
     }
-});
-notes.addEventListener("keydown", (e)=>{
-
-    if(e.ctrlKey && e.key==="Enter"){
-
-        document.getElementById("summaryBtn").click();
-
+};
+document.getElementById("downloadBtn").onclick = () => {
+    if (output.innerText.trim() === "" ||
+        output.innerText.includes("AI response will appear here")) {
+        alert("Nothing to download.");
+        return;
     }
-
+    const blob = new Blob(
+        [output.innerText],
+        { type: "text/plain" }
+    );
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "MindMintAI_Output.txt";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+};
+document.getElementById("themeBtn").onclick = () => {
+    document.body.classList.toggle("dark");
+    const btn = document.getElementById("themeBtn");
+    if (document.body.classList.contains("dark")) {
+        btn.innerHTML = "☀️ Light Mode";
+    } else {
+        btn.innerHTML = "🌙 Dark Mode";
+    }
+};
+window.addEventListener("load", () => {
+    output.innerHTML = `
+        <h2>👋 Welcome to MindMint AI</h2>
+        <p>
+        Upload a PDF or paste your notes to get started.
+        </p>
+        <hr><br>
+        <b>Available Features:</b>
+        <ul style="margin-top:10px; line-height:2;">
+            <li>📄 AI Summary</li>
+            <li>🧠 Simplify Concepts</li>
+            <li>❓ Quiz Generator</li>
+            <li>🗂 Flashcards</li>
+            <li>🚀 Exam Booster</li>
+            <li>📅 Study Planner</li>
+        </ul>
+        <br>
+        <p>
+        💡 Tip: Press <b>Ctrl + Enter</b> to instantly generate a summary.
+        </p>`;
 });

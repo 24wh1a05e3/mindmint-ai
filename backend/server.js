@@ -1,10 +1,12 @@
-import multer from "multer";
-import fs from "fs";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import multer from "multer";
+import fs from "fs";
 import { GoogleGenAI } from "@google/genai";
 dotenv.config();
+const pdfParseModule = await import("pdf-parse");
+const pdfParse = pdfParseModule.default || pdfParseModule;
 const app = express();
 const PORT = process.env.PORT || 5000;
 app.use(cors());
@@ -20,60 +22,89 @@ const storage = multer.diskStorage({
         cb(null, Date.now() + "-" + file.originalname);
     }
 });
-
 const upload = multer({
-    storage,
+    storage: storage,
     limits: {
-        fileSize: 20 * 1024 * 1024
+        fileSize: 20 * 1024 * 1024 // 20 MB
     }
 });
 app.get("/", (req, res) => {
-    res.send("MindMint AI Backend Running 🚀");
+    res.send("✅ MindMint AI Backend Running");
+});
+app.post("/upload/pdf", upload.single("pdf"), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                error: "No PDF uploaded."
+            });
+        }
+        console.log("File uploaded:", req.file.originalname);
+
+const buffer = fs.readFileSync(req.file.path);
+
+console.log("Buffer size:", buffer.length);
+
+const pdf = await pdfParse(buffer);
+
+console.log("Extracted characters:", pdf.text.length);
+
+fs.unlinkSync(req.file.path);
+
+res.json({
+    success: true,
+    text: pdf.text
+});
+        fs.unlinkSync(req.file.path);
+        res.json({
+            success: true,
+            text: pdf.text
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            success: false,
+            error: "Unable to read PDF."
+        });
+    }
 });
 app.post("/generate", async (req, res) => {
     try {
         const { prompt } = req.body;
+
+        console.log("Prompt received");
+
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: prompt
         });
+
+        console.log(response);
+
+        const text = response.text || "No response generated.";
+
         res.json({
-            result: response.text
+            result: text
         });
+
     } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            error: "Failed to generate response."
-        });
+    console.error("Gemini Error:");
+    console.error(error);
+
+    if (error.response) {
+        console.error(await error.response.text());
     }
+
+    res.status(500).json({
+        error: error.message
+    });
+}
 });
-app.post("/upload/pdf", upload.single("pdf"), async (req,res)=>{
-
-    try{
-
-        const buffer = fs.readFileSync(req.file.path);
-
-        const pdf = await pdfParse(buffer);
-
-        fs.unlinkSync(req.file.path);
-
-        res.json({
-            text: pdf.text
-        });
-
-    }
-
-    catch(err){
-
-        console.log(err);
-
-        res.status(500).json({
-            error:"Unable to read PDF"
-        });
-
-    }
-
+app.use((req, res) => {
+    res.status(404).json({
+        error: "Route not found."
+    });
 });
 app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`🚀 Server Running`);
+    console.log(`http://localhost:${PORT}`);
 });
