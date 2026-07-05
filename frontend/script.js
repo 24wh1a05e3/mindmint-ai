@@ -1,17 +1,15 @@
+const pdfInput = document.getElementById("pdfInput");
+const allButtons = document.querySelectorAll(".buttons button");
 const notes = document.getElementById("notes");
 const output = document.getElementById("output");
 async function askAI(prompt){
     output.innerHTML=`
-
 <div class="loader"></div>
-
 <p style="text-align:center">
-
 MindMint AI is analyzing your notes...
-
 </p>
-
 `;
+allButtons.forEach(btn => btn.disabled = true);
     try{
         const response = await fetch("http://localhost:5000/generate",{
             method:"POST",
@@ -24,15 +22,18 @@ MindMint AI is analyzing your notes...
         });
         const data = await response.json();
         output.innerHTML=`
-
 <h2>✨ AI Response</h2>
-
 <hr><br>
 
 ${data.result}`;
     }
     catch(error){
-        output.innerHTML="❌ Unable to connect.";
+        allButtons.forEach(btn => btn.disabled = false);
+        output.innerHTML=`
+<h2>❌ Error</h2>
+<p>Unable to connect to MindMint AI.</p>
+<p>Please check your internet or backend server.</p>
+`;
         console.log(error);
     }
 }
@@ -43,17 +44,24 @@ function getNotes(){
     }
     return notes.value;
 }
-document.getElementById("summaryBtn").onclick=()=>{
-    const text=getNotes();
-    if(!text) return;
+document.getElementById("summaryBtn").onclick = () => {
+
+    if(notes.value.trim()==""){
+        alert("Upload a PDF first.");
+        return;
+    }
     askAI(`
-Summarize these notes.
-Give:
+You are an expert teacher.
+Answer ONLY from the study material below.
+If something is not present in the notes,
+say "Not available in uploaded PDF."
+Study Material:
+${notes.value}
+Give
 1. Short Summary
 2. Key Points
 3. Important Terms
-4. Final Revision Notes
-${text}
+4. Revision Notes
 `);
 };
 document.getElementById("simplifyBtn").onclick=()=>{
@@ -121,40 +129,62 @@ document.getElementById("copyBtn").onclick = () => {
 // Download Button
 document.getElementById("downloadBtn").onclick = () => {
     const blob = new Blob([output.innerText], { type: "text/plain" });
-
     const a = document.createElement("a");
-
     a.href = URL.createObjectURL(blob);
-
     a.download = "MindMintAI_Notes.txt";
-
     a.click();
 };
-
 // Dark Mode
 document.getElementById("themeBtn").onclick = () => {
     document.body.classList.toggle("dark");
 };
 document.getElementById("plannerBtn").onclick=()=>{
-
 const text=getNotes();
-
 if(!text) return;
-
 askAI(`
-
 Create a 7-day study plan for
-
 ${text}
-
 Include
-
 Daily Goals
-
 Revision
-
 Practice Questions
-
 `);
-
 };
+pdfInput.addEventListener("change", async () => {
+
+    const file = pdfInput.files[0];
+
+    if (!file) return;
+
+    const formData = new FormData();
+
+    formData.append("pdf", file);
+
+    output.innerHTML = "📄 Uploading PDF...";
+
+    try {
+
+        const response = await fetch("http://localhost:5000/upload/pdf", {
+            method: "POST",
+            body: formData
+        });
+        const data = await response.json();
+        notes.value = data.text;
+        console.log("PDF Length:", data.text.length);
+        console.log(data.text.substring(0,500));
+        output.innerHTML ="✅ PDF uploaded successfully.<br>Now choose Summary, Quiz or Simplify.";
+    }
+    catch(err){
+        console.log(err);
+        output.innerHTML="❌ PDF Upload Failed.";
+    }
+});
+notes.addEventListener("keydown", (e)=>{
+
+    if(e.ctrlKey && e.key==="Enter"){
+
+        document.getElementById("summaryBtn").click();
+
+    }
+
+});
