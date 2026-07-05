@@ -1,3 +1,4 @@
+const API_BASE = window.location.origin;
 const pdfInput = document.getElementById("pdfInput");
 console.log(pdfInput);
 const notes = document.getElementById("notes");
@@ -12,7 +13,7 @@ async function askAI(prompt) {
     `;
     allButtons.forEach(btn => btn.disabled = true);
     try {
-        const response = await fetch("http://localhost:5000/generate", {
+        const response = await fetch(`${API_BASE}/generate`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -60,7 +61,7 @@ pdfInput.addEventListener("change", async () => {
     formData.append("pdf", file);
 
     try {
-        const response = await fetch("http://localhost:5000/upload/pdf", {
+        const response = await fetch(`${API_BASE}/upload/pdf`, {
             method: "POST",
             body: formData
         });
