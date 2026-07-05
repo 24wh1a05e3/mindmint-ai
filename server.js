@@ -31,6 +31,12 @@ if (!process.env.GEMINI_API_KEY) {
   console.warn("Please set GEMINI_API_KEY to use the AI features.");
 }
 
+// Create uploads directory if it doesn't exist
+if (!fs.existsSync("uploads")) {
+  fs.mkdirSync("uploads", { recursive: true });
+  console.log("📁 Created uploads directory");
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/"),
   filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
