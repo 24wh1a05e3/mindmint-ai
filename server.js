@@ -3,9 +3,14 @@ import cors from "cors";
 import dotenv from "dotenv";
 import multer from "multer";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const pdfParseModule = await import("pdf-parse");
 const pdfParse = pdfParseModule.default || pdfParseModule;
@@ -14,6 +19,7 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "frontend")));
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -30,7 +36,7 @@ const upload = multer({
 });
 
 app.get("/", (req, res) => {
-  res.send("✅ MindMint AI Backend Running");
+  res.sendFile(path.join(__dirname, "frontend", "index.html"));
 });
 
 app.post("/upload/pdf", upload.single("pdf"), async (req, res) => {
