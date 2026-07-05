@@ -25,6 +25,12 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
+// Validate API key on startup
+if (!process.env.GEMINI_API_KEY) {
+  console.warn("⚠️  WARNING: GEMINI_API_KEY is not set in environment variables!");
+  console.warn("Please set GEMINI_API_KEY to use the AI features.");
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/"),
   filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
@@ -59,6 +65,12 @@ app.post("/upload/pdf", upload.single("pdf"), async (req, res) => {
 
 app.post("/generate", async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({
+        error: "API key not configured. Please set GEMINI_API_KEY in environment variables.",
+      });
+    }
+
     const { prompt } = req.body;
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -68,8 +80,10 @@ app.post("/generate", async (req, res) => {
     const text = response.text || "No response generated.";
     res.json({ result: text });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+    console.error("API Error:", error.message);
+    res.status(500).json({
+      error: error.message || "Failed to generate content. Check API key and try again.",
+    });
   }
 });
 
